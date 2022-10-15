@@ -3,3 +3,4 @@ struct item {
     char astr[];
 };
 
+#define MQNAME "/just_a_filename"

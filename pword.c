@@ -3,6 +3,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
+#include "shareddefs.h"
+#include <mqueue.h>
 
 
 struct Node {
@@ -37,15 +39,63 @@ struct Node* insertWord(struct Node* root, char* word){
     return root;
 }
 
-void traverse(struct Node* root) {
+struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item* itemPtr, int* remainingSpace, int* pairCount) {
     if ( root == NULL ) {
-        return;
+        return itemPtr;
     }
-    traverse(root->leftPtr);
+    traverse(root->leftPtr, mqPtr, msg_size, itemPtr, remainingSpace, pairCount);
     printf("%s %d\n", root->word, root->count);
-    traverse(root->rightPtr);
+
+    char* word = root->word;
+    int freq = root->count;
+
+    if ( strlen(word) + 5 <= *remainingSpace ) {
+        char* ptr = &(*itemPtr).astr[msg_size - *remainingSpace];
+
+        for ( int i = 0; word[i] != '\0'; i++ ) {
+            *ptr = word[i];
+            ptr++;
+        }
+
+        // put mark at the end
+        *ptr = '\0';
+        ptr++;
+
+        // write int
+        int* pointer = (int*) ptr;
+        *pointer = freq;
+
+        *remainingSpace = *remainingSpace- strlen(word) - 5;
+        *pairCount = *pairCount + 1;
+        return traverse(root->rightPtr, mqPtr, msg_size, itemPtr, remainingSpace, pairCount);
+    }
+    else {
+        int* ptr = (int*) &(*itemPtr).astr[0];
+        *ptr = *pairCount;
+
+        // send a message
+        int n;
+        n = mq_send(*mqPtr, (char*) itemPtr, sizeof(struct item), 0);
+
+        if ( n == -1 ) {
+            printf("mq_send failed\n");
+        }
+        else {
+            printf("mq_send success\n");
+        }
+
+        free(itemPtr);
+
+        //struct item item;
+        struct item* newItemPtr = malloc(sizeof(struct item) + sizeof(char[msg_size]));
+        newItemPtr->msg_size = msg_size;
+
+        *remainingSpace = msg_size - strlen(word) - 9;
+        *pairCount = 1;
+        return traverse(root->rightPtr, mqPtr, msg_size, newItemPtr, remainingSpace, pairCount);
+    }
 }
-void parseFile(char* fileName);
+void parseFile(char* fileName, int msg_size);
 
 int main(int argc, char* argv[]) {
 
@@ -75,7 +125,15 @@ int main(int argc, char* argv[]) {
     for ( int i = 0; i < n; i++ ) {
         fileNames[i] = argv[i + 4];
     }
-    printf("%s\n", fileNames[n-1]);
+
+    // create a message queue
+    mqd_t mq; 
+    mq = mq_open(MQNAME, O_RDWR | O_CREAT, 0666, NULL);
+
+    if ( mq == -1 ) {
+        printf("can not create message queue\n");
+        exit(1);
+    }
 
     
     pid_t f;
@@ -83,7 +141,7 @@ int main(int argc, char* argv[]) {
         
         f = fork();
         if ( f == 0 ) {
-            parseFile(fileNames[i]);
+            parseFile(fileNames[i], msg_size);
             exit(0);
         }
     }
@@ -92,10 +150,18 @@ int main(int argc, char* argv[]) {
 }
 
 struct Node* head = NULL;
-void parseFile(char* fileName) {
+void parseFile(char* fileName, int msg_size) {
     FILE* file;
     char word[64];
     file = fopen(fileName, "r");
+
+    mqd_t mq;
+    struct item item;
+    mq = mq_open(MQNAME, O_RDWR);
+
+    if ( mq == -1 ) {
+        printf("opening mq failed\n");
+    }
 
     while ( fscanf(file, "%s", word) == 1 ) {
 
@@ -111,7 +177,31 @@ void parseFile(char* fileName) {
         head = insertWord(head, current);
     }
 
-    traverse(head);
+    struct item* itemPtr = malloc(sizeof(item) + sizeof(char[msg_size]));
+    itemPtr->msg_size = msg_size;
+    int pairCount = 0;
+    int remainingSpace = msg_size - 4;
+    itemPtr = traverse(head, &mq, msg_size, itemPtr, &remainingSpace, &pairCount);
+
+    int* ptr = (int*) &(*itemPtr).astr[0];
+    *ptr = pairCount;
+
+    // send a message
+    int n;
+    n = mq_send(mq, (char*) itemPtr, sizeof(struct item), 0);
+
+    if ( n == -1 ) {
+        printf("mq_send failed\n");
+    }
+    else {
+        printf("mq_send success\n");
+    }   
+
+    free(itemPtr);
+
+    printf("%c", (*itemPtr).astr[20]);
+    printf("%d", (*itemPtr).astr[16]);
+    printf("%d", remainingSpace);
     
     
     fclose(file);
