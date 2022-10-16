@@ -64,6 +64,15 @@ struct Node* insertWithCount(struct Node* root, char* word, int count){
     return root;
 }
 
+void printTree(struct Node* root) {
+    if ( root == NULL ) {
+        return;
+    }
+    printTree(root->leftPtr);
+    printf("%s %d\n", root->word, root->count);
+    printTree(root->rightPtr);
+}
+
 struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item* itemPtr, int* remainingSpace, int* pairCount) {
     if ( root == NULL ) {
         return itemPtr;
@@ -171,6 +180,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    struct Node* parentHead = NULL;
     struct mq_attr mq_attr;
     struct item* itemptr;
     int num;
@@ -206,10 +216,13 @@ int main(int argc, char* argv[]) {
                 int* numPtr = (int*) (current + strlen(current) + 1);
                 printf("%s", current);
                 printf("%d\n", *numPtr);
+                parentHead = insertWithCount(parentHead, current, *numPtr);
                 current = (char *) (numPtr + 1);
             }
         }
     }
+
+    printTree(parentHead);
 
 
     mq_close(mq);
