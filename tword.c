@@ -65,7 +65,6 @@ struct Node* insertWithCount(struct Node* root, char* word, int count){
         }
         else {
             root->count = root->count + count;
-            free(word);
         }
     }
     return root;
@@ -75,7 +74,7 @@ void printTree(struct Node* root, FILE* outputFile, int* count) {
     if ( root == NULL ) {
         return;
     }
-    *count++;
+    (*count)++;
     printTree(root->leftPtr, outputFile, count);
     if ( *count == 1 ) {
         fprintf(outputFile, "%s %d", root->word, root->count);
@@ -101,7 +100,6 @@ void deallocate(struct Node* root) {
     }
     deallocate(root->leftPtr);
     deallocate(root->rightPtr);
-    free(root->word);
     free(root);
 }
 
@@ -109,12 +107,12 @@ void* parseFile(void* arguments);
 struct Node** head = NULL;
 struct Node* parentHead = NULL;
 
-void traverse(struct Node* parentHead, struct Node* root) {
+void traverse(struct Node** parentHead, struct Node* root) {
     if ( root == NULL ) {
         return;
     }
     traverse(parentHead, root->leftPtr);
-    parentHead = insertWithCount(parentHead, root->word, root->count);
+    *parentHead = insertWithCount(*parentHead, root->word, root->count);
     traverse(parentHead, root->rightPtr);
 }
 
@@ -147,13 +145,17 @@ int main(int argc, char* argv[]) {
     }
     
     for ( int i = 0; i < n; i++ ) {
-        traverse(parentHead, head[i]);
+        traverse(&parentHead, head[i]);
     }
 
-    printf("%d", parentHead == NULL);
-    printTreeConsole(parentHead);
+    FILE* outputFile;
+    outputFile = fopen(outfile, "w");
+    int num = 0;
+
+    printTree(parentHead, outputFile, &num);
 
     deallocate(parentHead);
+    fclose(outputFile);
 
     for ( int i = 0; i < n; i++ ) {
         deallocate(head[i]);
