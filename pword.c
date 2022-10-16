@@ -39,6 +39,31 @@ struct Node* insertWord(struct Node* root, char* word){
     return root;
 }
 
+struct Node* insertWithCount(struct Node* root, char* word, int count){
+    struct Node* newNode;
+    if ( root == NULL ) {
+        newNode = (struct Node*) malloc(sizeof(struct Node));
+        newNode->leftPtr = NULL;
+        newNode->rightPtr = NULL;
+        newNode->word = word;
+        newNode->count = count;
+
+        return newNode;
+    }
+    else {
+        if ( strcmp(word, root->word) < 0 ) {
+            root->leftPtr = insertWithCount(root->leftPtr, word, count);
+        }
+        else if ( strcmp(word, root->word) > 0) {
+            root->rightPtr = insertWithCount(root->rightPtr, word, count);
+        }
+        else {
+            root->count = root->count + count;
+        }
+    }
+    return root;
+}
+
 struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item* itemPtr, int* remainingSpace, int* pairCount) {
     if ( root == NULL ) {
         return itemPtr;
