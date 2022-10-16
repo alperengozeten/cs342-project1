@@ -146,6 +146,31 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    struct mq_attr mq_attr;
+    struct item* itemptr;
+    int num;
+    int buflen;
+    char* bufptr;
+    int terminalCount = 0;
+
+    mq_getattr(mq, &mq_attr);
+    buflen = mq_attr.mq_msgsize;
+    bufptr = (char*) malloc(buflen);
+
+    while ( terminalCount != 2 ) {
+        num = mq_receive(mq, (char*) bufptr, buflen, NULL);
+        if ( num == - 1 ) {
+            printf("mq_receive failed\n");
+        }
+        else {
+            printf("mq_receive success");
+        }
+        itemptr = (struct item*) bufptr;   
+        terminalCount++;   
+    }
+
+
+    mq_close(mq);
     return 0;
 }
 
@@ -199,10 +224,31 @@ void parseFile(char* fileName, int msg_size) {
 
     free(itemPtr);
 
+    // send terminal message for this process
+    struct item* terminalItemPtr = malloc(sizeof(item) + sizeof(char[msg_size]));
+    terminalItemPtr ->msg_size = msg_size;
+    int* pointer = (int*) &(*terminalItemPtr).astr[0];
+    *pointer = -1;
+
+    // send the terminal message
+    n = mq_send(mq, (char*) terminalItemPtr, sizeof(struct item), 0);
+
+    if ( n == -1 ) {
+        printf("mq_send failed\n");
+    }
+    else {
+        printf("mq_send success\n");
+    }   
+
+    free(terminalItemPtr);
+
     printf("%c", (*itemPtr).astr[20]);
     printf("%d", (*itemPtr).astr[16]);
     printf("%d", remainingSpace);
+    int* p = (int*) &(*itemPtr).astr[0];
+    printf("%d", *p);
     
     
     fclose(file);
+    mq_close(mq);
 }
