@@ -21,6 +21,7 @@ struct Node* insertWord(struct Node* root, char* word){
         newNode->leftPtr = NULL;
         newNode->rightPtr = NULL;
         newNode->word = word;
+        printf("%s", word);
         newNode->count = 1;
 
         return newNode;
@@ -46,6 +47,7 @@ struct Node* insertWithCount(struct Node* root, char* word, int count){
         newNode->leftPtr = NULL;
         newNode->rightPtr = NULL;
         newNode->word = word;
+        printf("%s", word);
         newNode->count = count;
 
         return newNode;
@@ -130,6 +132,7 @@ struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item
     }
 }
 void parseFile(char* fileName, int msg_size);
+struct Node* parentHead = NULL;
 
 int main(int argc, char* argv[]) {
 
@@ -180,7 +183,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    struct Node* parentHead = NULL;
     struct mq_attr mq_attr;
     struct item* itemptr;
     int num;
@@ -193,38 +195,44 @@ int main(int argc, char* argv[]) {
     bufptr = (char*) malloc(buflen);
 
     while ( terminalCount != n ) {
+        
         num = mq_receive(mq, (char*) bufptr, buflen, NULL);
         if ( num == - 1 ) {
             printf("mq_receive failed\n");
         }
         else {
             printf("mq_receive success");
-        }
-        itemptr = (struct item*) bufptr;   
+            itemptr = (struct item*) bufptr;   
 
-        int* pairCountPtr = (int*) &(*itemptr).astr[0];
-        printf("%d\n", *pairCountPtr);
-        printf("%c\n", (*itemptr).astr[4]);
-        if ( *pairCountPtr == -1 ) {
-            terminalCount++;
-        }
-        else {
-            int pairCount = *pairCountPtr;
-            char* current = (char *) (pairCountPtr + 1);
+            int* pairCountPtr = (int*) &(*itemptr).astr[0];
+            printf("%d\n", *pairCountPtr);
+            printf("%c\n", (*itemptr).astr[4]);
+            if ( *pairCountPtr == -1 ) {
+                terminalCount++;
+            }
+            else {
+                int pairCount = *pairCountPtr;
+                char* current = (char *) (pairCountPtr + 1);
 
-            for ( int i = 0; i < pairCount; i++ ) {
-                int* numPtr = (int*) (current + strlen(current) + 1);
-                printf("%s", current);
-                printf("%d\n", *numPtr);
-                parentHead = insertWithCount(parentHead, current, *numPtr);
-                current = (char *) (numPtr + 1);
+                for ( int i = 0; i < pairCount; i++ ) {
+                    int* numPtr = (int*) (current + strlen(current) + 1);
+                    printf("%s", current);
+                    printf("%d\n", *numPtr);
+
+                    char* saveWord = strdup(current);
+                    parentHead = insertWord(parentHead, saveWord);
+
+                    if ( i != (pairCount - 1) ) {
+                        current = (char *) (numPtr + 1);
+                    }
+                }
             }
         }
     }
 
     printTree(parentHead);
 
-
+    free(bufptr);
     mq_close(mq);
     return 0;
 }
