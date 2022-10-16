@@ -75,7 +75,7 @@ struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item
 
         // send a message
         int n;
-        n = mq_send(*mqPtr, (char*) itemPtr, sizeof(struct item), 0);
+        n = mq_send(*mqPtr, (char*) itemPtr, sizeof(struct item) + sizeof(char[msg_size]), 0);
 
         if ( n == -1 ) {
             printf("mq_send failed\n");
@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
     buflen = mq_attr.mq_msgsize;
     bufptr = (char*) malloc(buflen);
 
-    while ( terminalCount != 2 ) {
+    while ( terminalCount != n ) {
         num = mq_receive(mq, (char*) bufptr, buflen, NULL);
         if ( num == - 1 ) {
             printf("mq_receive failed\n");
@@ -166,7 +166,24 @@ int main(int argc, char* argv[]) {
             printf("mq_receive success");
         }
         itemptr = (struct item*) bufptr;   
-        terminalCount++;   
+
+        int* pairCountPtr = (int*) &(*itemptr).astr[0];
+        printf("%d\n", *pairCountPtr);
+        printf("%c\n", (*itemptr).astr[4]);
+        if ( *pairCountPtr == -1 ) {
+            terminalCount++;
+        }
+        else {
+            int pairCount = *pairCountPtr;
+            char* current = (char *) (pairCountPtr + 1);
+
+            for ( int i = 0; i < pairCount; i++ ) {
+                int* numPtr = (int*) (current + strlen(current) + 1);
+                printf("%s", current);
+                printf("%d\n", *numPtr);
+                current = (char *) (numPtr + 1);
+            }
+        }
     }
 
 
@@ -213,7 +230,7 @@ void parseFile(char* fileName, int msg_size) {
 
     // send a message
     int n;
-    n = mq_send(mq, (char*) itemPtr, sizeof(struct item), 0);
+    n = mq_send(mq, (char*) itemPtr, sizeof(struct item) + sizeof(char[msg_size]), 0);
 
     if ( n == -1 ) {
         printf("mq_send failed\n");
@@ -226,12 +243,12 @@ void parseFile(char* fileName, int msg_size) {
 
     // send terminal message for this process
     struct item* terminalItemPtr = malloc(sizeof(item) + sizeof(char[msg_size]));
-    terminalItemPtr ->msg_size = msg_size;
+    terminalItemPtr->msg_size = msg_size;
     int* pointer = (int*) &(*terminalItemPtr).astr[0];
     *pointer = -1;
 
     // send the terminal message
-    n = mq_send(mq, (char*) terminalItemPtr, sizeof(struct item), 0);
+    n = mq_send(mq, (char*) terminalItemPtr, sizeof(struct item) + sizeof(char[msg_size]), 0);
 
     if ( n == -1 ) {
         printf("mq_send failed\n");
