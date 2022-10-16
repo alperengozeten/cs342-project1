@@ -66,13 +66,19 @@ struct Node* insertWithCount(struct Node* root, char* word, int count){
     return root;
 }
 
-void printTree(struct Node* root) {
+void printTree(struct Node* root, FILE* outputFile, int* count) {
     if ( root == NULL ) {
         return;
     }
-    printTree(root->leftPtr);
-    printf("%s %d\n", root->word, root->count);
-    printTree(root->rightPtr);
+    *count++;
+    printTree(root->leftPtr, outputFile, count);
+    if ( *count == 1 ) {
+        fprintf(outputFile, "%s %d", root->word, root->count);
+    }
+    else {
+        fprintf(outputFile, "\n%s %d", root->word, root->count);
+    }
+    printTree(root->rightPtr, outputFile, count);
 }
 
 struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item* itemPtr, int* remainingSpace, int* pairCount) {
@@ -230,8 +236,13 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    printTree(parentHead);
+    FILE* outputFile;
+    outputFile = fopen(outfile, "w");
+    int count = 0;
 
+    printTree(parentHead, outputFile, &count);
+
+    fclose(outputFile);
     free(bufptr);
     mq_close(mq);
     return 0;
