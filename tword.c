@@ -13,6 +13,11 @@ struct Node {
     int count;
 };
 
+struct thread_arg {
+    int threadCounter;
+    char* filename;
+};
+
 struct Node* insertWord(struct Node* root, char* word){
     struct Node* newNode;
     if ( root == NULL ) {
@@ -81,6 +86,15 @@ void printTree(struct Node* root, FILE* outputFile, int* count) {
     printTree(root->rightPtr, outputFile, count);
 }
 
+void printTreeConsole(struct Node* root) {
+    if ( root == NULL ) {
+        return;
+    }
+    printTreeConsole(root->leftPtr);
+    printf("%s %d\n", root->word, root->count);
+    printTreeConsole(root->rightPtr);
+}
+
 void deallocate(struct Node* root) {
     if ( root == NULL ) {
         return;
@@ -91,50 +105,70 @@ void deallocate(struct Node* root) {
     free(root);
 }
 
-void parseFile(char* fileName, int threadCounter);
+void* parseFile(void* arguments);
+struct Node** head = NULL;
+struct Node* parentHead = NULL;
+
+void traverse(struct Node* parentHead, struct Node* root) {
+    if ( root == NULL ) {
+        return;
+    }
+    traverse(parentHead, root->leftPtr);
+    parentHead = insertWithCount(parentHead, root->word, root->count);
+    traverse(parentHead, root->rightPtr);
+}
 
 int main(int argc, char* argv[]) {
 
-    int pos_msg_size[] = {128, 256, 512, 1024, 2048, 4096};
-    if ( argc < 5 ) {
+    if ( argc < 4 ) {
         printf("You have entered insufficient number of arguments! Usage: pword <msgsize> <outfile> <N> <infile1> .... <infileN>\n");
         return -1;
     }
-    int msg_size = atoi(argv[1]);
-    char* outfile = argv[2];
+    char* outfile = argv[1];
 
-    // message size should be appropriate
-    int found = 0;
-    for ( int i = 0; i < 6; i++ ) {
-        if ( pos_msg_size[i] == msg_size ) {
-            found = 1;
-            break;
-        }
-    }
-    if ( found == 0 ) {
-        printf("You have entered invalid message size in bytes. Please enter one of the numbers 128, 256, 512, 1024, 2048, 4096.\n");
-        return -1;
-    }
-
-    int n = atoi(argv[3]);
+    int n = atoi(argv[2]);
     char* fileNames[n];
     for ( int i = 0; i < n; i++ ) {
-        fileNames[i] = argv[i + 4];
+        fileNames[i] = argv[i + 3];
     }
 
+    head = malloc(sizeof(int*) * n);
+    struct thread_arg arguments[n];
+    pthread_t thread_ids[n];
 
+    for ( int i = 0; i < n; i++ ) {
+        arguments[i].threadCounter = i;   
+        arguments[i].filename = fileNames[i];
+        pthread_create(&thread_ids[i], NULL, &parseFile, (void*) &arguments[i]);
+    }
 
+    for ( int i = 0; i < n; i++ ) {
+        pthread_join(thread_ids[i], NULL);
+    }
+    
+    for ( int i = 0; i < n; i++ ) {
+        traverse(parentHead, head[i]);
+    }
 
+    printf("%d", parentHead == NULL);
+    printTreeConsole(parentHead);
+
+    deallocate(parentHead);
+
+    for ( int i = 0; i < n; i++ ) {
+        deallocate(head[i]);
+    }
+    free(head);
 }
 
-struct Node** head = NULL;
-
-
-void parseFile(char* fileName, int threadCounter) {
+void* parseFile(void* arguments) {
+    struct thread_arg* args = (struct thread_arg*) arguments;
+    char* fileName = (*args).filename;
+    int threadCounter = (*args).threadCounter;
     FILE* file;
     char word[64];
     file = fopen(fileName, "r");
-    struct Node* currentHead = head[threadCounter];
+    head[threadCounter] = NULL;
 
     while ( fscanf(file, "%s", word) == 1 ) {
 
@@ -146,6 +180,6 @@ void parseFile(char* fileName, int threadCounter) {
             }
         }
         
-        head = insertWord(head, current);
+        head[threadCounter] = insertWord(head[threadCounter], current);
     }
 }
