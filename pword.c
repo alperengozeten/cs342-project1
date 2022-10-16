@@ -61,6 +61,7 @@ struct Node* insertWithCount(struct Node* root, char* word, int count){
         }
         else {
             root->count = root->count + count;
+            free(word);
         }
     }
     return root;
@@ -79,6 +80,16 @@ void printTree(struct Node* root, FILE* outputFile, int* count) {
         fprintf(outputFile, "\n%s %d", root->word, root->count);
     }
     printTree(root->rightPtr, outputFile, count);
+}
+
+void deallocate(struct Node* root) {
+    if ( root == NULL ) {
+        return;
+    }
+    deallocate(root->leftPtr);
+    deallocate(root->rightPtr);
+    free(root->word);
+    free(root);
 }
 
 struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item* itemPtr, int* remainingSpace, int* pairCount) {
@@ -226,7 +237,7 @@ int main(int argc, char* argv[]) {
                     printf("%d\n", *numPtr);
 
                     char* saveWord = strdup(current);
-                    parentHead = insertWord(parentHead, saveWord);
+                    parentHead = insertWithCount(parentHead, saveWord, *numPtr);
 
                     if ( i != (pairCount - 1) ) {
                         current = (char *) (numPtr + 1);
@@ -242,6 +253,7 @@ int main(int argc, char* argv[]) {
 
     printTree(parentHead, outputFile, &count);
 
+    deallocate(parentHead);
     fclose(outputFile);
     free(bufptr);
     mq_close(mq);
@@ -322,7 +334,7 @@ void parseFile(char* fileName, int msg_size) {
     int* p = (int*) &(*itemPtr).astr[0];
     printf("%d", *p);
     
-    
+    free(head);
     fclose(file);
     mq_close(mq);
 }
