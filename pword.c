@@ -71,7 +71,7 @@ void printTree(struct Node* root, FILE* outputFile, int* count) {
     if ( root == NULL ) {
         return;
     }
-    *count++;
+    (*count)++;
     printTree(root->leftPtr, outputFile, count);
     if ( *count == 1 ) {
         fprintf(outputFile, "%s %d", root->word, root->count);
@@ -80,6 +80,15 @@ void printTree(struct Node* root, FILE* outputFile, int* count) {
         fprintf(outputFile, "\n%s %d", root->word, root->count);
     }
     printTree(root->rightPtr, outputFile, count);
+}
+
+void printTreeConsole(struct Node* root) {
+    if ( root == NULL ) {
+        return;
+    }
+    printTreeConsole(root->leftPtr);
+    printf("%s %d\n", root->word, root->count);
+    printTreeConsole(root->rightPtr);
 }
 
 void deallocate(struct Node* root) {
@@ -142,6 +151,22 @@ struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item
         //struct item item;
         struct item* newItemPtr = malloc(sizeof(struct item) + sizeof(char[msg_size]));
         newItemPtr->msg_size = msg_size;
+
+        // save the word
+        char* pointer = &(*itemPtr).astr[4];
+
+        for ( int i = 0; word[i] != '\0'; i++ ) {
+            *pointer = word[i];
+            pointer++;
+        }
+
+        // put mark at the end
+        *pointer = '\0';
+        pointer++;
+
+        // write int
+        int* numPointer = (int*) pointer;
+        *numPointer = freq;
 
         *remainingSpace = msg_size - strlen(word) - 9;
         *pairCount = 1;
@@ -238,6 +263,7 @@ int main(int argc, char* argv[]) {
 
                     char* saveWord = strdup(current);
                     parentHead = insertWithCount(parentHead, saveWord, *numPtr);
+                    printf("\n saved:%s-\n", saveWord);
 
                     if ( i != (pairCount - 1) ) {
                         current = (char *) (numPtr + 1);
@@ -252,6 +278,7 @@ int main(int argc, char* argv[]) {
     int count = 0;
 
     printTree(parentHead, outputFile, &count);
+    printTreeConsole(parentHead);
 
     deallocate(parentHead);
     fclose(outputFile);
@@ -296,6 +323,7 @@ void parseFile(char* fileName, int msg_size) {
 
     int* ptr = (int*) &(*itemPtr).astr[0];
     *ptr = pairCount;
+    printf("\nchar:%c", (*itemPtr).astr[4]);
 
     // send a message
     int n;
