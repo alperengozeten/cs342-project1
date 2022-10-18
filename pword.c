@@ -71,14 +71,14 @@ void printTree(struct Node* root, FILE* outputFile, int* count) {
     if ( root == NULL ) {
         return;
     }
-    (*count)++;
     printTree(root->leftPtr, outputFile, count);
-    if ( *count == 1 ) {
+    if ( (*count) == 0 ) {
         fprintf(outputFile, "%s %d", root->word, root->count);
     }
     else {
         fprintf(outputFile, "\n%s %d", root->word, root->count);
     }
+    (*count)++;
     printTree(root->rightPtr, outputFile, count);
 }
 
