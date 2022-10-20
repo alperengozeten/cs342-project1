@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include "shareddefs.h"
 #include <mqueue.h>
+#include <time.h>
+#include <sys/time.h>
 
 
 struct Node {
@@ -21,7 +23,6 @@ struct Node* insertWord(struct Node* root, char* word){
         newNode->leftPtr = NULL;
         newNode->rightPtr = NULL;
         newNode->word = word;
-        printf("%s", word);
         newNode->count = 1;
 
         return newNode;
@@ -47,7 +48,6 @@ struct Node* insertWithCount(struct Node* root, char* word, int count){
         newNode->leftPtr = NULL;
         newNode->rightPtr = NULL;
         newNode->word = word;
-        printf("%s", word);
         newNode->count = count;
 
         return newNode;
@@ -106,7 +106,6 @@ struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item
         return itemPtr;
     }
     traverse(root->leftPtr, mqPtr, msg_size, itemPtr, remainingSpace, pairCount);
-    printf("%s %d\n", root->word, root->count);
 
     char* word = root->word;
     int freq = root->count;
@@ -139,6 +138,7 @@ struct item* traverse(struct Node* root, mqd_t* mqPtr, int msg_size, struct item
         int n;
         n = mq_send(*mqPtr, (char*) itemPtr, sizeof(struct item) + sizeof(char[msg_size]), 0);
 
+        
         if ( n == -1 ) {
             printf("mq_send failed\n");
         }
@@ -205,6 +205,14 @@ int main(int argc, char* argv[]) {
         fileNames[i] = argv[i + 4];
     }
 
+    // start the timer
+    time_t t;
+    srand((unsigned) time(&t));
+
+    struct timeval currTime;
+    gettimeofday(&currTime, NULL);
+    long before = currTime.tv_usec;
+
     // create a message queue
     mqd_t mq; 
     mq = mq_open(MQNAME, O_RDWR | O_CREAT, 0666, NULL);
@@ -247,8 +255,7 @@ int main(int argc, char* argv[]) {
             itemptr = (struct item*) bufptr;   
 
             int* pairCountPtr = (int*) &(*itemptr).astr[0];
-            printf("%d\n", *pairCountPtr);
-            printf("%c\n", (*itemptr).astr[4]);
+
             if ( *pairCountPtr == -1 ) {
                 terminalCount++;
             }
@@ -258,12 +265,9 @@ int main(int argc, char* argv[]) {
 
                 for ( int i = 0; i < pairCount; i++ ) {
                     int* numPtr = (int*) (current + strlen(current) + 1);
-                    printf("%s", current);
-                    printf("%d\n", *numPtr);
 
                     char* saveWord = strdup(current);
                     parentHead = insertWithCount(parentHead, saveWord, *numPtr);
-                    printf("\n saved:%s-\n", saveWord);
 
                     if ( i != (pairCount - 1) ) {
                         current = (char *) (numPtr + 1);
@@ -278,12 +282,15 @@ int main(int argc, char* argv[]) {
     int count = 0;
 
     printTree(parentHead, outputFile, &count);
-    printTreeConsole(parentHead);
 
     deallocate(parentHead);
     fclose(outputFile);
     free(bufptr);
     mq_close(mq);
+
+    gettimeofday(&currTime, NULL);
+    long after= currTime.tv_usec;
+    printf("\nThe execution took: %ld ms \n", after - before);
     return 0;
 }
 
@@ -323,7 +330,6 @@ void parseFile(char* fileName, int msg_size) {
 
     int* ptr = (int*) &(*itemPtr).astr[0];
     *ptr = pairCount;
-    printf("\nchar:%c", (*itemPtr).astr[4]);
 
     // send a message
     int n;
@@ -355,12 +361,6 @@ void parseFile(char* fileName, int msg_size) {
     }   
 
     free(terminalItemPtr);
-
-    printf("%c", (*itemPtr).astr[20]);
-    printf("%d", (*itemPtr).astr[16]);
-    printf("%d", remainingSpace);
-    int* p = (int*) &(*itemPtr).astr[0];
-    printf("%d", *p);
     
     free(head);
     fclose(file);

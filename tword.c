@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include "shareddefs.h"
 #include <pthread.h>
+#include <time.h>
+#include <sys/time.h>
 
 struct Node {
     struct Node* leftPtr;
@@ -25,7 +27,6 @@ struct Node* insertWord(struct Node* root, char* word){
         newNode->leftPtr = NULL;
         newNode->rightPtr = NULL;
         newNode->word = word;
-        printf("%s", word);
         newNode->count = 1;
 
         return newNode;
@@ -52,7 +53,6 @@ struct Node* insertWithCount(struct Node* root, char* word, int count){
         newNode->leftPtr = NULL;
         newNode->rightPtr = NULL;
         newNode->word = word;
-        printf("%s", word);
         newNode->count = count;
 
         return newNode;
@@ -141,6 +141,14 @@ int main(int argc, char* argv[]) {
         fileNames[i] = argv[i + 3];
     }
 
+    // start the timer
+    time_t t;
+    srand((unsigned) time(&t));
+
+    struct timeval currTime;
+    gettimeofday(&currTime, NULL);
+    long before = currTime.tv_usec;
+
     head = malloc(sizeof(struct Node*) * n);
     struct thread_arg arguments[n];
     pthread_t thread_ids[n];
@@ -172,6 +180,10 @@ int main(int argc, char* argv[]) {
         deallocateWithWord(head[i]);
     }
     free(head);
+
+    gettimeofday(&currTime, NULL);
+    long after= currTime.tv_usec;
+    printf("\nThe execution took: %ld ms \n", after - before);
 }
 
 void* parseFile(void* arguments) {
@@ -197,4 +209,5 @@ void* parseFile(void* arguments) {
     }
 
     fclose(file);
+    pthread_exit(0);
 }
