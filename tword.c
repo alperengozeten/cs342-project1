@@ -108,8 +108,8 @@ void deallocateWithWord(struct Node* root) {
     if ( root == NULL ) {
         return;
     }
-    deallocate(root->leftPtr);
-    deallocate(root->rightPtr);
+    deallocateWithWord(root->leftPtr);
+    deallocateWithWord(root->rightPtr);
     free(root->word);
     free(root);
 }
