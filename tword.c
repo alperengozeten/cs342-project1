@@ -39,6 +39,7 @@ struct Node* insertWord(struct Node* root, char* word){
         }
         else {
             root->count = root->count + 1;
+            free(word);
         }
     }
     return root;
@@ -103,6 +104,16 @@ void deallocate(struct Node* root) {
     free(root);
 }
 
+void deallocateWithWord(struct Node* root) {
+    if ( root == NULL ) {
+        return;
+    }
+    deallocate(root->leftPtr);
+    deallocate(root->rightPtr);
+    free(root->word);
+    free(root);
+}
+
 void* parseFile(void* arguments);
 struct Node** head = NULL;
 struct Node* parentHead = NULL;
@@ -130,7 +141,7 @@ int main(int argc, char* argv[]) {
         fileNames[i] = argv[i + 3];
     }
 
-    head = malloc(sizeof(int*) * n);
+    head = malloc(sizeof(struct Node*) * n);
     struct thread_arg arguments[n];
     pthread_t thread_ids[n];
 
@@ -158,7 +169,7 @@ int main(int argc, char* argv[]) {
     fclose(outputFile);
 
     for ( int i = 0; i < n; i++ ) {
-        deallocate(head[i]);
+        deallocateWithWord(head[i]);
     }
     free(head);
 }
@@ -184,4 +195,6 @@ void* parseFile(void* arguments) {
         
         head[threadCounter] = insertWord(head[threadCounter], current);
     }
+
+    fclose(file);
 }
